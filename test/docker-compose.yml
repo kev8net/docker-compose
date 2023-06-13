@@ -90,7 +90,7 @@ services:
             - PUID=1000
             - PGID=1000
             - CLOUDFLARE_EMAIL=admin@kev8.net
-            - CLOUDFLARE_DNS_API_TOKEN=oj2-Uohfg9nvJnSSvPjW_Dh3WSz5g-TPecVg7LoG
+            - CLOUDFLARE_DNS_API_TOKEN=
         networks:
             - proxy
         ports:
