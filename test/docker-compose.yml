@@ -1,0 +1,102 @@
+version: '1.0'
+services:
+    duplicati:
+        image: linuxserver/duplicati
+        container_name: duplicati
+        hostname: duplicati.${HOSTNAME}
+        volumes:
+            - '/data/container/volumes/duplicati_config:/config'
+            - '/:/source'
+            - '/:/backups'
+        labels:
+            - traefik.enable=true
+            - traefik.http.routers.duplicati.entrypoints=websecure
+            - traefik.http.routers.duplicati.rule=Host(`duplicati.${HOSTNAME}`)
+            - traefik.http.services.duplicati.loadbalancer.server.port=8200
+        environment:
+            - PUID=0
+            - PGID=0
+        networks:
+            - proxy
+        restart: unless-stopped
+    filebrowser:
+        image: filebrowser/filebrowser
+        container_name: filebrowser
+        hostname: filebrowser.${HOSTNAME}
+        volumes:
+            - '/data/container/volumes/filebrowser_data:/data'
+            - '/:/srv'
+        labels:
+            - traefik.enable=true
+            - traefik.http.routers.filebrowser.entrypoints=websecure
+            - traefik.http.routers.filebrowser.rule=Host(`filebrowser.${HOSTNAME}`)
+            - traefik.http.services.filebrowser.loadbalancer.server.port=80
+        environment:
+            - PUID=1000
+            - PGID=1000
+        networks:
+            - proxy
+        restart: unless-stopped
+    portainer:
+        image: portainer/portainer-ce
+        container_name: portainer
+        hostname: portainer.${HOSTNAME}
+        volumes:
+            - '/var/run/docker.sock:/var/run/docker.sock:ro'
+            - '/data/container/volumes/portainer_data:/data'
+        labels:
+            - traefik.enable=true
+            - traefik.http.routers.portainer.entrypoints=websecure
+            - traefik.http.routers.portainer.rule=Host(`portainer.${HOSTNAME}`)
+            - traefik.http.services.portainer.loadbalancer.server.port=9000
+        environment:
+            - PUID=1000
+            - PGID=1000
+        networks:
+            - proxy
+        restart: unless-stopped
+    traefik:
+        image: 'traefik'
+        container_name: traefik
+        hostname: traefik.${HOSTNAME}
+        command:
+            - '--api.dashboard=true'
+            - '--providers.docker=true'
+            - '--providers.docker.exposedbydefault=false'
+            - '--certificatesresolvers.letsencrypt.acme.dnschallenge=true'
+            - '--certificatesresolvers.letsencrypt.acme.dnschallenge.provider=cloudflare'
+            - '--certificatesresolvers.letsencrypt.acme.email=admin@kev8.net'
+            - '--certificatesresolvers.letsencrypt.acme.storage=/certificate/acme.json'
+            - '--entrypoints.web.address=:80'
+            - '--entrypoints.web.http.redirections.entrypoint.to=websecure'
+            - '--entrypoints.web.http.redirections.entrypoint.scheme=https'
+            - '--entrypoints.websecure.address=:443'
+            - '--entrypoints.websecure.http.tls=true'
+            - '--entrypoints.websecure.http.tls.certResolver=letsencrypt'
+            - '--entrypoints.websecure.http.tls.domains[0].main=${HOSTNAME}'
+            - '--entrypoints.websecure.http.tls.domains[0].sans=*.${HOSTNAME}'
+        volumes:
+            - '/var/run/docker.sock:/var/run/docker.sock:ro'
+            - '/data/container/volumes/traefik_certificate:/certificate'
+        labels:
+            - traefik.enable=true
+            - traefik.http.routers.traefik.entrypoints=websecure
+            - traefik.http.routers.traefik.rule=Host(`traefik.${HOSTNAME}`)
+            - traefik.http.services.traefik.loadbalancer.server.port=8080
+            - traefik.http.routers.traefik.service=api@internal
+            - traefik.http.middlewares.traefik.stripprefix.prefixes=/traefik
+            - traefik.http.routers.traefik.middlewares=traefik
+        environment:
+            - PUID=1000
+            - PGID=1000
+            - CLOUDFLARE_EMAIL=admin@kev8.net
+            - CLOUDFLARE_DNS_API_TOKEN=oj2-Uohfg9nvJnSSvPjW_Dh3WSz5g-TPecVg7LoG
+        networks:
+            - proxy
+        ports:
+            - '80:80'
+            - '443:443'
+        restart: unless-stopped
+networks:
+    proxy:
+        external: true
